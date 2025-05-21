@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Donate to Charity</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  body { font-family: Arial, sans-serif; background: #f0f4f8; padding: 30px; }
+  .container { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+  h2 { color: #2c3e50; }
+  label, input, button { display: block; width: 100%; margin-top: 10px; }
+  input { padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+  button { margin-top: 20px; background: #27ae60; color: white; border: none; padding: 12px; font-size: 16px; cursor: pointer; border-radius: 4px; }
+  button:disabled { background: #95a5a6; cursor: not-allowed; }
+  #message { margin-top: 20px; color: red; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h2>Donate to Verified Charity</h2>
+    <p>You're donating to: <strong id="orgName"></strong></p>
+
+    <label for="amount">Amount (ETH):</label>
+    <input type="number" id="amount" min="0.001" step="0.001" value="0.1" />
+
+    <button id="donateBtn" disabled>Connect MetaMask</button>
+
+    <div id="message"></div>
+    <hr />
+        <h3>Your Recent Transactions</h3>
+            <div id="txHistory" style="font-size: 14px; color: #333;"></div>
+
+  </div>
+
+<script>
+  let accounts = [];
+
+  const orgNameElem = document.getElementById('orgName');
+  const donateBtn = document.getElementById('donateBtn');
+  const amountInput = document.getElementById('amount');
+  const messageElem = document.getElementById('message');
+
+  // Get charity org name from URL param e.g. donate.html?org=RedCross
+  const urlParams = new URLSearchParams(window.location.search);
+  const orgName = urlParams.get('org') || 'Unknown Charity';
+  orgNameElem.textContent = orgName;
+
+  // Check if MetaMask is installed
+  async function checkMetaMask() {
+    if (typeof window.ethereum === 'undefined') {
+      messageElem.textContent = '⚠️ MetaMask not found! Please install MetaMask.';
+      donateBtn.disabled = true;
+      return false;
+    }
+    donateBtn.textContent = 'Connect Wallet';
+    donateBtn.disabled = false;
+    return true;
+  }
+
+  // Connect wallet function
+  async function connectWallet() {
+    try {
+      accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      donateBtn.textContent = 'Donate';
+      messageElem.textContent = `Connected account: ${accounts[0]}`;
+      donateBtn.disabled = false;
+    } catch (error) {
+      messageElem.textContent = '⚠️ Connection request rejected.';
+      donateBtn.disabled = false;
+    }
+  }
+
+  // Send transaction function
+  async function sendDonation() {
+    const amountEth = amountInput.value;
+    if (!amountEth || amountEth <= 0) {
+      messageElem.textContent = 'Please enter a valid donation amount.';
+      return;
+    }
+
+    const donationInWei = (amountEth * 1e18).toString(); // convert ETH to Wei
+
+    try {
+      donateBtn.disabled = true;
+      messageElem.textContent = 'Waiting for transaction confirmation...';
+
+      // Send ETH to charity wallet address (replace with real address)
+      const charityAddress = '0xb26Afcb37E1C77C50675204fA501De8154015209';
+
+      const txHash = await ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          from: accounts[0],
+          to: charityAddress,
+          value: '0x' + BigInt(donationInWei).toString(16),
+        }],
+      });
+
+      messageElem.innerHTML = `🎉 Donation successful! `;
+      donateBtn.disabled = false;
+
+    } catch (error) {
+      console.error(error);
+      messageElem.textContent = `⚠️ Transaction failed: ${error.message || error}`;
+      donateBtn.disabled = false;
+    }
+  }
+
+  donateBtn.addEventListener('click', async () => {
+    if (accounts.length === 0) {
+      await connectWallet();
+    } else {
+      await sendDonation();
+    }
+  });
+
+  const ETHERSCAN_API_KEY = 'ZEW79RAIJKYUGI6FBF5VKEH9YUXZFX4URZ'; // 🔁 ВСТАВЬ СЮДА СВОЙ КЛЮЧ
+  const ETHERSCAN_BASE = 'https://api-sepolia.etherscan.io/api';
+
+  async function loadTxHistory(address) {
+    const url = `${ETHERSCAN_BASE}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=5&sort=desc&apikey=${ETHERSCAN_API_KEY}`;
+    const txHistoryElem = document.getElementById('txHistory');
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.status !== '1') {
+        txHistoryElem.textContent = 'No transactions found or API error.';
+        return;
+      }
+
+      const txs = data.result;
+      txHistoryElem.innerHTML = txs.map(tx => {
+        const ethAmount = (parseFloat(tx.value) / 1e18).toFixed(4);
+        const link = `https://sepolia.etherscan.io/tx/${tx.hash}`;
+        return `
+          <div style="margin-bottom: 10px;">
+            <strong>To:</strong> ${tx.to}<br>
+            <strong>Amount:</strong> ${ethAmount} ETH<br>
+            <a href="${link}" target="_blank">View on Etherscan</a>
+          </div>
+        `;
+      }).join('');
+
+    } catch (err) {
+      txHistoryElem.textContent = 'Error loading transaction history.';
+      console.error(err);
+    }
+  }
+
+  // Изменим connectWallet() — добавим вызов loadTxHistory()
+  async function connectWallet() {
+    try {
+      accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      donateBtn.textContent = 'Donate';
+      messageElem.textContent = `Connected account: ${accounts[0]}`;
+      donateBtn.disabled = false;
+
+      await loadTxHistory(accounts[0]); // ← загружаем историю
+    } catch (error) {
+      messageElem.textContent = '⚠️ Connection request rejected.';
+      donateBtn.disabled = false;
+    }
+  }
+
+  window.onload = checkMetaMask;
+</script>
+
+<button onclick="window.location.href='index.html'" class="back-btn">← Back to Home</button>
+
+</body>
+</html>

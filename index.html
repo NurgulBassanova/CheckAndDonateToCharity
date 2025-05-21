@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Charity Validator</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Check Charity Organization</h1>
+    <input type="text" id="orgName" placeholder="Enter organization name" />
+    <button onclick="checkCharity()">Validate</button>
+    <div id="result"></div>
+  </div>
+  <script src="fake-db.js"></script>
+  <script>
+    function checkCharity() {
+      const name = document.getElementById('orgName').value.trim();
+      const resultDiv = document.getElementById('result');
+      const found = charities.find(c => c.name.toLowerCase() === name.toLowerCase());
+
+      if (!found) {
+        resultDiv.innerHTML = `<p class="unknown">❓ No data found. Use caution.</p>`;
+        return;
+      }
+
+      if (found.isGenuine) {
+        resultDiv.innerHTML = `
+          <p class="genuine">✅ ${found.name} is a verified charity!</p>
+          <a href="donate.html?org=${encodeURIComponent(name)}" class="donate-btn">Donate</a>
+        `;
+      } else {
+        resultDiv.innerHTML = `<p class="fake">🚫 ${found.name} is flagged as suspicious.</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
